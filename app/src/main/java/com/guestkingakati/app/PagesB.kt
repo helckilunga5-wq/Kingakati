@@ -37,6 +37,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -49,11 +50,46 @@ fun BookingPage(initialService: String) {
     var date by rememberSaveable { mutableStateOf("") }
     var guests by rememberSaveable { mutableStateOf("1") }
     var details by rememberSaveable { mutableStateOf("") }
+    var showPicker by remember { mutableStateOf(false) }
 
     val phoneOk = isValidPhone(phone)
     val dateOk = isValidDate(date)
     val guestsOk = guests.toIntOrNull()?.let { it in 1..500 } == true
     val formOk = name.isNotBlank() && phoneOk && dateOk && guestsOk
+
+    if (showPicker) {
+        val local = Calendar.getInstance()
+        val todayUtc = Calendar.getInstance(TimeZone.getTimeZone("UTC")).apply {
+            clear()
+            set(local.get(Calendar.YEAR), local.get(Calendar.MONTH), local.get(Calendar.DAY_OF_MONTH))
+        }.timeInMillis
+        val pickerState = rememberDatePickerState(
+            selectableDates = object : SelectableDates {
+                override fun isSelectableDate(utcTimeMillis: Long): Boolean =
+                    utcTimeMillis >= todayUtc
+            }
+        )
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pickerState.selectedDateMillis?.let { millis ->
+                            val f = SimpleDateFormat("dd/MM/yyyy", Locale.FRANCE)
+                            f.timeZone = TimeZone.getTimeZone("UTC")
+                            date = f.format(Date(millis))
+                        }
+                        showPicker = false
+                    }
+                ) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) { Text("Annuler") }
+            }
+        ) {
+            DatePicker(state = pickerState)
+        }
+    }
 
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -123,21 +159,14 @@ fun BookingPage(initialService: String) {
         }
 
         item {
-            OutlinedTextField(
-                value = date,
-                onValueChange = { v ->
-                    if (v.length <= 10 && v.all { it.isDigit() || it == '/' }) date = v
-                },
-                label = { Text("Date souhaitée") },
-                placeholder = { Text("JJ/MM/AAAA") },
-                singleLine = true,
-                isError = date.isNotEmpty() && !dateOk,
-                supportingText = if (date.isNotEmpty() && !dateOk) {
-                    { Text("Date invalide ou passée (format JJ/MM/AAAA).") }
-                } else null,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+            Text("Date souhaitée", color = Gold)
+            Spacer(Modifier.height(4.dp))
+            OutlinedButton(
+                onClick = { showPicker = true },
                 modifier = Modifier.fillMaxWidth()
-            )
+            ) {
+                Text(if (date.isBlank()) "📅 Choisir la date" else "📅 $date")
+            }
         }
 
         item {
