@@ -76,7 +76,7 @@ fun HomePage(onNavigate: (page: String, service: String?) -> Unit) {
                 }
             }
         }
-
+item { PhotoGallery() }
         item {
             ServiceCard(
                 title = "Hôtel",
